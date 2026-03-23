@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Retail Store Management</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        .section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #fafafa; }
+        .section h2 { margin-top: 0; color: #007bff; }
+        .filter-controls { background: #e9ecef; padding: 10px; border-radius: 4px; margin-bottom: 10px; display: flex; gap: 10px; align-items: center; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #007bff; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        form { margin: 10px 0; }
+        input, select { padding: 8px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .alert { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .alert.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .form-row { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏪 Simple Retail Store Management System</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="section">
+            <h2>📦 Add New Product</h2>
+            <form method="POST">
+                <input type="hidden" name="form_type" value="add_product">
+                <div class="form-row">
+                    <input type="text" name="product_name" placeholder="Product Name" required>
+                    <input type="number" step="0.01" name="price" placeholder="Price (₹)" required>
+                    <input type="number" name="stock_quantity" placeholder="Stock Quantity" required>
+                    <button type="submit">Add Product</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>👥 Add New Customer</h2>
+            <form method="POST">
+                <input type="hidden" name="form_type" value="add_customer">
+                <div class="form-row">
+                    <input type="text" name="customer_name" placeholder="Customer Name" required>
+                    <input type="text" name="phone" placeholder="Phone Number">
+                    <input type="email" name="email" placeholder="Email">
+                    <button type="submit">Add Customer</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>💰 Make Sale</h2>
+            <form method="POST">
+                <input type="hidden" name="form_type" value="make_sale">
+                <div class="form-row">
+                    <select name="customer_id" required>
+                        <option value="">Select Customer</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.customer_id }}">{{ customer.customer_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="product_id" required>
+                        <option value="">Select Product</option>
+                        {% for product in products %}
+                        <option value="{{ product.product_id }}">{{ product.product_name }} (₹{{ "%.2f"|format(product.price) }})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="quantity" placeholder="Quantity" min="1" required>
+                    <button type="submit">Make Sale</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>📋 Products List</h2>
+            <div class="filter-controls">
+                <form method="GET" style="margin:0;">
+                    Sort by: 
+                    <select name="p_sort" onchange="this.form.submit()">
+                        <option value="product_name" {% if p_sort == 'product_name' %}selected{% endif %}>Name</option>
+                        <option value="price" {% if p_sort == 'price' %}selected{% endif %}>Price</option>
+                        <option value="stock_quantity" {% if p_sort == 'stock_quantity' %}selected{% endif %}>Stock</option>
+                        <option value="created_at" {% if p_sort == 'created_at' %}selected{% endif %}>Date Added</option>
+                    </select>
+                    <select name="p_order" onchange="this.form.submit()">
+                        <option value="ASC" {% if p_order == 'ASC' %}selected{% endif %}>Ascending</option>
+                        <option value="DESC" {% if p_order == 'DESC' %}selected{% endif %}>Descending</option>
+                    </select>
+                </form>
+            </div>
+            <table>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Price (₹)</th>
+                    <th>Stock</th>
+                    <th>Added Date</th>
+                    <th>Actions</th>
+                </tr>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        <span id="view-name-prod-{{ product.product_id }}">{{ product.product_name }}</span>
+                        <input type="text" form="form-edit-prod-{{ product.product_id }}" name="product_name" value="{{ product.product_name }}" id="edit-name-prod-{{ product.product_id }}" style="display:none;" required>
+                    </td>
+                    <td>
+                        <span id="view-price-prod-{{ product.product_id }}">₹{{ "%.2f"|format(product.price) }}</span>
+                        <input type="number" step="0.01" min="0" form="form-edit-prod-{{ product.product_id }}" name="price" value="{{ product.price }}" id="edit-price-prod-{{ product.product_id }}" style="display:none;" required>
+                    </td>
+                    <td>{{ product.stock_quantity }}</td>
+                    <td>{{ product.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <form id="form-edit-prod-{{ product.product_id }}" method="POST" style="display:none;">
+                            <input type="hidden" name="form_type" value="edit_product">
+                            <input type="hidden" name="product_id" value="{{ product.product_id }}">
+                        </form>
+                        <form id="form-del-prod-{{ product.product_id }}" method="POST" style="display:none;">
+                            <input type="hidden" name="form_type" value="delete_product">
+                            <input type="hidden" name="product_id" value="{{ product.product_id }}">
+                        </form>
+                        <button type="button" onclick="toggleEdit('prod', {{ product.product_id }})" style="background-color: #ffc107; color: black; padding: 5px 10px;">Edit</button>
+                        <button type="submit" form="form-del-prod-{{ product.product_id }}" style="background-color: #dc3545; padding: 5px 10px;" onclick="return confirm('Delete?');">Del</button>
+                        <button type="submit" form="form-edit-prod-{{ product.product_id }}" id="btn-save-prod-{{ product.product_id }}" style="display:none; background-color: #28a745; padding: 5px 10px;">Save</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>👤 Customers List</h2>
+            <div class="filter-controls">
+                <form method="GET" style="margin:0;">
+                    Sort: 
+                    <select name="c_sort" onchange="this.form.submit()">
+                        <option value="customer_name" {% if c_sort == 'customer_name' %}selected{% endif %}>Name</option>
+                        <option value="created_at" {% if c_sort == 'created_at' %}selected{% endif %}>Join Date</option>
+                    </select>
+                </form>
+            </div>
+            <table>
+                <tr>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+                {% for customer in customers %}
+                <tr>
+                    <td>{{ customer.customer_name }}</td>
+                    <td>{{ customer.phone or '-' }}</td>
+                    <td>{{ customer.email or '-' }}</td>
+                    <td>
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="form_type" value="delete_customer">
+                            <input type="hidden" name="customer_id" value="{{ customer.customer_id }}">
+                            <button type="submit" style="background-color: #dc3545; padding: 5px 10px;" onclick="return confirm('Delete?');">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>🧾 Sales History</h2>
+            <div class="filter-controls">
+                <form method="GET" style="margin:0;">
+                    Sort: 
+                    <select name="s_sort" onchange="this.form.submit()">
+                        <option value="sale_date" {% if s_sort == 'sale_date' %}selected{% endif %}>Date</option>
+                        <option value="total_amount" {% if s_sort == 'total_amount' %}selected{% endif %}>Total Amount</option>
+                        <option value="quantity_sold" {% if s_sort == 'quantity_sold' %}selected{% endif %}>Quantity</option>
+                    </select>
+                </form>
+            </div>
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Total</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+                {% for sale in sales %}
+                <tr>
+                    <td>#{{ sale.sale_id }}</td>
+                    <td>{{ sale.customer_name }}</td>
+                    <td>{{ sale.product_name }}</td>
+                    <td>{{ sale.quantity_sold }}</td>
+                    <td>₹{{ "%.2f"|format(sale.total_amount) }}</td>
+                    <td>{{ sale.sale_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="form_type" value="delete_sale">
+                            <input type="hidden" name="sale_id" value="{{ sale.sale_id }}">
+                            <button type="submit" style="background-color: #dc3545; padding: 5px 10px;">Void</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function toggleEdit(type, id) {
+            const isEditing = document.getElementById(`btn-save-${type}-${id}`).style.display === 'inline-block';
+            document.getElementById(`view-name-${type}-${id}`).style.display = isEditing ? 'inline' : 'none';
+            document.getElementById(`view-price-${type}-${id}`).style.display = isEditing ? 'inline' : 'none';
+            document.getElementById(`edit-name-${type}-${id}`).style.display = isEditing ? 'none' : 'inline-block';
+            document.getElementById(`edit-price-${type}-${id}`).style.display = isEditing ? 'none' : 'inline-block';
+            document.getElementById(`btn-save-${type}-${id}`).style.display = isEditing ? 'none' : 'inline-block';
+        }
+    </script>
+</body>
+</html>
